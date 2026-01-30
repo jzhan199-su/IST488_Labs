@@ -13,19 +13,20 @@ def read_pdf(uploaded_file):
     return text
 
 # Show title and description.
-st.title("My Document question answering")
+st.title("My Document Summary GPT App")
 st.write(
-    "Upload a document below and ask a question about it – GPT will answer! "
-    "To use this app, you need to provide an OpenAI API key, which you can get [here](https://platform.openai.com/account/api-keys). "
-)
+    "Upload a document below and choose a type of summary to generate a result using OpenAI's GPT models.")
 
-# Ask user for their OpenAI API key via `st.text_input`.
+
 # Alternatively, you can store the API key in `./.streamlit/secrets.toml` and access it
 # via `st.secrets`, see https://docs.streamlit.io/develop/concepts/connections/secrets-management
-openai_api_key = st.text_input("OpenAI API Key", type="password")
+
+#1. Initialize the OpenAI client with the API key from Streamlit secrets.
+openai_api_key = st.secrets.get("OPENAI_API_KEY")
 if not openai_api_key:
-    st.info("Please add your OpenAI API key to continue.", icon="🗝️")
-    st.stop()
+        st.error("OpenAI API key not found. Please set it in Streamlit secrets.")
+        st.stop()
+
 
 try:
     # Create an OpenAI client.
@@ -39,14 +40,31 @@ try:
         "Upload a document (.txt or .pdf)", type=("txt", "pdf")
     )
 
-    # Ask the user for a question via `st.text_area`.
-    question = st.text_area(
-        "Now ask a question about the document!",
-        placeholder="Can you give me a short summary?",
-        disabled=not uploaded_file,
+    summary_type = st.sidebar.radio(
+        "Choose summary type:",
+        [
+            "Summarize in 100 words",
+            "Summarize in 2 connecting paragraphs",
+            "Summarize in 5 bullet points",
+            "用中文总结为100字",
+            "用中文总结为2段连贯的文字",
+            "用中文总结为5个要点"
+        ]
     )
 
-    if uploaded_file and question:
+    use_advanced = st.sidebar.checkbox("Use advanced model")
+
+    if use_advanced:
+        model = "gpt-5.1-chat-latest" 
+        st.sidebar.info("Using: GPT-5.1 Chat Latest")
+    else:
+        model = "gpt-3.5-turbo" 
+        st.sidebar.info("Using: GPT-3.5-Turbo")
+
+
+
+
+    if uploaded_file and summary_type and use_advanced is not None:
 
         #read different types of files
         file_extension = uploaded_file.name.split('.')[-1]
@@ -63,13 +81,13 @@ try:
         messages = [
             {
                 "role": "user",
-                "content": f"Here's a document: {document} \n\n---\n\n {question}",
+                "content": f"Here's a document: {document} \n\n---\n\n {summary_type}",
             }
         ]
 
         # Generate an answer using the OpenAI API.
         stream = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=model,
             messages=messages,
             stream=True,
         )
